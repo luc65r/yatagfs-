@@ -1,10 +1,13 @@
+#include <iostream>
 #include <stdexcept>
 
 #include "sqlite.hxx"
 
 SQLite::SQLite(const char *path) {
-    if (sqlite3_open(path, &db) != 0)
-        throw std::runtime_error("failed to open SQLite database");
+    std::cerr << "Opening SQLite database " << path << std::endl;
+    int rc = sqlite3_open(path, &db);
+    if (rc != 0)
+        throw Error(rc);
 }
 
 SQLite::~SQLite() {

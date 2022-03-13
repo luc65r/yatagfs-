@@ -25,20 +25,16 @@ static auto do_getattr(
 
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 Fuse::Fuse(int argc, char **argv)
-    : op{
+    : args(argc, argv)
+    , op{
         .getattr = do_getattr,
     }
 {
-    // TODO: free resources when failing
-    args = FUSE_ARGS_INIT(argc, argv);
-
-    if (fuse_parse_cmdline(&args, &opts) != 0)
-        throw std::runtime_error("failed to parse cmdline args");
-
+    args.parse_cmdline(&opts);
     if (!opts.mountpoint)
         throw std::runtime_error("no mountpoint specified");
 
-    fuse = fuse_new(&args, &op, sizeof op, this);
+    fuse = fuse_new(&args.args, &op, sizeof op, this);
     if (fuse == NULL)
         throw std::runtime_error("failed to initialize fuse");
 
@@ -57,7 +53,6 @@ Fuse::~Fuse() {
     fuse_unmount(fuse);
     fuse_destroy(fuse);
     free(opts.mountpoint);
-    fuse_opt_free_args(&args);
 }
 
 auto Fuse::run() -> int {
@@ -70,4 +65,26 @@ auto Fuse::run() -> int {
         };
         return fuse_loop_mt(fuse, &loop_config);
     }
+}
+
+Fuse::Args::Args(int argc, char **argv)
+    : args{argc, argv, 0}
+{}
+
+Fuse::Args::~Args() {
+    fuse_opt_free_args(&args);
+}
+
+auto Fuse::Args::parse(
+    void *data,
+    const struct fuse_opt *opts,
+    fuse_opt_proc_t proc
+) -> void {
+    if (fuse_opt_parse(&args, data, opts, proc) != 0)
+        throw std::runtime_error("failed to parse args");
+}
+
+auto Fuse::Args::parse_cmdline(struct fuse_cmdline_opts *opts) -> void {
+    if (fuse_parse_cmdline(&args, opts) != 0)
+        throw std::runtime_error("failed to parse cmdline args");
 }

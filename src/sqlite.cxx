@@ -6,8 +6,13 @@
 SQLite::SQLite(const char *path) {
     std::cerr << "Opening SQLite database " << path << std::endl;
     int rc = sqlite3_open(path, &db);
-    if (rc != 0)
+    if (rc != SQLITE_OK)
         throw Error(rc);
+
+    char *errormsg;
+    rc = sqlite3_carray_init(db, &errormsg, NULL);
+    if (rc != SQLITE_OK)
+        throw Error(errormsg);
 }
 
 SQLite::~SQLite() {

@@ -23,6 +23,12 @@
 extern "C" {
 #endif
 
+SQLITE_API int sqlite3_carray_init(
+  sqlite3 *db, 
+  char **pzErrMsg, 
+  const sqlite3_api_routines *pApi
+);
+
 /* Use this interface to bind an array to the single-argument version
 ** of CARRAY().
 */

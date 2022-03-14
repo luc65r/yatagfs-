@@ -48,7 +48,7 @@ public:
 
     auto column_int(int) -> int;
     auto column_int64(int) -> int64_t;
-    auto column_text(int) -> const unsigned char *;
+    auto column_text(int) -> const char *;
 };
 
 class SQLite::Error : public std::exception {

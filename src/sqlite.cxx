@@ -85,8 +85,8 @@ auto SQLite::Row::column_int64(int i) -> int64_t {
     return sqlite3_column_int64(stmt->stmt, i);
 }
 
-auto SQLite::Row::column_text(int i) -> const unsigned char * {
-    return sqlite3_column_text(stmt->stmt, i);
+auto SQLite::Row::column_text(int i) -> const char * {
+    return reinterpret_cast<const char *>(sqlite3_column_text(stmt->stmt, i));
 }
 
 SQLite::Error::Error(int code) noexcept

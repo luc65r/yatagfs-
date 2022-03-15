@@ -1,3 +1,4 @@
+#include <list>
 #include <optional>
 
 #include <sqlite3.h>
@@ -16,8 +17,10 @@ public:
 
     auto error() const noexcept -> Error;
     auto prepare(const char *query) -> Stmt;
+    auto prepare_all(const char *query) -> std::list<Stmt>;
     template<typename... TS>
     auto prepare_bind(const char *query, TS... binds) -> Stmt;
+    auto exec(const char *query) -> void;
 };
 
 class SQLite::Stmt {
@@ -37,6 +40,7 @@ public:
     auto bind_all(int start_id, T first_bind, TS... rest) -> void;
 
     auto step() -> std::optional<Row>;
+    auto exec() -> void;
 };
 
 class SQLite::Row {

@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cctype>
+#include <cstring>
 #include <iostream>
 #include <stdexcept>
 
@@ -30,6 +33,36 @@ auto SQLite::prepare(const char *query) -> Stmt {
         throw this->error();
 
     return Stmt(this, stmt);
+}
+
+static auto can_prerpare(const char *query) -> bool {
+    return query && std::any_of(
+        query, query + std::strlen(query),
+        [](unsigned char c) {
+            return !std::isspace(c);
+        }
+    );
+}
+
+auto SQLite::prepare_all(const char *query) -> std::list<Stmt> {
+    const char *remaining = query;
+    std::list<Stmt> list;
+
+    while (can_prerpare(remaining)) {
+        sqlite3_stmt *stmt;
+        std::cerr << "preparing: " << remaining << std::endl;
+        if (sqlite3_prepare_v2(db, remaining, -1, &stmt, &remaining))
+            throw this->error();
+        list.emplace_back(this, stmt);
+    }
+
+    return list;
+}
+
+auto SQLite::exec(const char *query) -> void {
+    auto stmts = this->prepare_all(query);
+    for (auto &&stmt : stmts)
+        stmt.exec();
 }
 
 SQLite::Stmt::Stmt(const SQLite *db, sqlite3_stmt *stmt)
@@ -69,6 +102,11 @@ auto SQLite::Stmt::step() -> std::optional<Row> {
     default:
         throw this->error();
     }
+}
+
+auto SQLite::Stmt::exec() -> void {
+    while (this->step())
+        ;
 }
 
 SQLite::Row::Row(const Stmt *stmt)

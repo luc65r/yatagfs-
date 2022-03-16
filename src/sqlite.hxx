@@ -1,5 +1,7 @@
+#include <functional>
 #include <list>
 #include <optional>
+#include <utility>
 
 #include <sqlite3.h>
 #include "carray.h"
@@ -41,6 +43,8 @@ public:
 
     auto step() -> std::optional<Row>;
     auto exec() -> void;
+    template<typename F>
+    auto iterate(F &&f) -> void;
 };
 
 class SQLite::Row {
@@ -53,6 +57,19 @@ public:
     auto column_int(int) -> int;
     auto column_int64(int) -> int64_t;
     auto column_text(int) -> const char *;
+
+private:
+    auto _call(int, std::function<auto() -> void>) -> void;
+    template<typename... TS>
+    auto _call(int, std::function<auto(int, TS...) -> void>) -> void;
+    template<typename... TS>
+    auto _call(int, std::function<auto(int64_t, TS...) -> void>) -> void;
+    template<typename... TS>
+    auto _call(int, std::function<auto(const char *, TS...) -> void>) -> void;
+
+public:
+    template<typename F>
+    auto call(int n, F &&f) -> void;
 };
 
 class SQLite::Error : public std::exception {
@@ -78,4 +95,55 @@ template<typename T, typename... TS>
 auto SQLite::Stmt::bind(int id, T first_bind, TS... rest) -> void {
     this->bind(id, first_bind);
     this->bind(id + 1, rest...);
+}
+
+template<typename F>
+auto SQLite::Stmt::iterate(F &&f) -> void {
+    while (auto r = this->step())
+        r->call(0, std::forward<F>(f));
+}
+
+template<typename F>
+auto SQLite::Row::call(int n, F &&f) -> void {
+        this->_call(n, std::function(f));
+}
+
+inline auto SQLite::Row::_call(
+    [[maybe_unused]] int n,
+    std::function<auto() -> void> f
+) -> void {
+    f();
+}
+
+template<typename... TS>
+auto SQLite::Row::_call(
+    int n,
+    std::function<auto(int, TS...) -> void> f
+) -> void {
+    auto c = this->column_int(n);
+    this->call(n + 1, [=](TS... args) -> void {
+        f(c, args...);
+    });
+}
+
+template<typename... TS>
+auto SQLite::Row::_call(
+    int n,
+    std::function<auto(int64_t, TS...) -> void> f
+) -> void {
+    auto c = this->column_int64(n);
+    this->call(n + 1, [=](TS... args) -> void {
+        f(c, args...);
+    });
+}
+
+template<typename... TS>
+auto SQLite::Row::_call(
+    int n,
+    std::function<auto(const char *, TS...) -> void> f
+) -> void {
+    auto c = this->column_text(n);
+    this->call(n + 1, [=](TS... args) -> void {
+        f(c, args...);
+    });
 }

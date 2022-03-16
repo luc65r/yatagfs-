@@ -37,7 +37,7 @@ public:
     auto bind(int id, int64_t) -> void;
     auto bind(int id, const char *) -> void;
     template<typename T, typename... TS>
-    auto bind_all(int start_id, T first_bind, TS... rest) -> void;
+    auto bind(int start_id, T first_bind, TS... rest) -> void;
 
     auto step() -> std::optional<Row>;
     auto exec() -> void;
@@ -70,12 +70,12 @@ public:
 template<typename... TS>
 auto SQLite::prepare_bind(const char *query, TS... binds) -> Stmt {
     auto stmt = this->prepare(query);
-    stmt.bind_all(1, binds...);
+    stmt.bind(1, binds...);
     return stmt;
 }
 
 template<typename T, typename... TS>
-auto SQLite::Stmt::bind_all(int id, T first_bind, TS... rest) -> void {
+auto SQLite::Stmt::bind(int id, T first_bind, TS... rest) -> void {
     this->bind(id, first_bind);
-    this->bind_all(id + 1, rest...);
+    this->bind(id + 1, rest...);
 }

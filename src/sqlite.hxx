@@ -18,11 +18,11 @@ public:
     ~SQLite();
 
     auto error() const noexcept -> Error;
-    auto prepare(const char *query) -> Stmt;
-    auto prepare_all(const char *query) -> std::list<Stmt>;
+    auto prepare(std::string_view query) -> Stmt;
+    auto prepare_all(std::string_view query) -> std::list<Stmt>;
     template<typename... TS>
-    auto prepare_bind(const char *query, TS... binds) -> Stmt;
-    auto exec(const char *query) -> void;
+    auto prepare_bind(std::string_view query, TS... binds) -> Stmt;
+    auto exec(std::string_view query) -> void;
 };
 
 class SQLite::Stmt {
@@ -37,7 +37,7 @@ public:
 
     auto bind(int id, int) -> void;
     auto bind(int id, int64_t) -> void;
-    auto bind(int id, const char *) -> void;
+    auto bind(int id, std::string_view) -> void;
     template<typename T, typename... TS>
     auto bind(int start_id, T first_bind, TS... rest) -> void;
 
@@ -56,7 +56,8 @@ public:
 
     auto column_int(int) -> int;
     auto column_int64(int) -> int64_t;
-    auto column_text(int) -> const char *;
+    /* WARNING: resulting `string_view` validity */
+    auto column_text(int) -> std::string_view;
 
 private:
     auto _call(int, std::function<auto() -> void>) -> void;
@@ -65,7 +66,7 @@ private:
     template<typename... TS>
     auto _call(int, std::function<auto(int64_t, TS...) -> void>) -> void;
     template<typename... TS>
-    auto _call(int, std::function<auto(const char *, TS...) -> void>) -> void;
+    auto _call(int, std::function<auto(std::optional<std::string_view>, TS...) -> void>) -> void;
 
 public:
     template<typename F>
@@ -85,7 +86,7 @@ public:
 };
 
 template<typename... TS>
-auto SQLite::prepare_bind(const char *query, TS... binds) -> Stmt {
+auto SQLite::prepare_bind(std::string_view query, TS... binds) -> Stmt {
     auto stmt = this->prepare(query);
     stmt.bind(1, binds...);
     return stmt;
@@ -140,7 +141,7 @@ auto SQLite::Row::_call(
 template<typename... TS>
 auto SQLite::Row::_call(
     int n,
-    std::function<auto(const char *, TS...) -> void> f
+    std::function<auto(std::optional<std::string_view>, TS...) -> void> f
 ) -> void {
     auto c = this->column_text(n);
     this->call(n + 1, [=](TS... args) -> void {

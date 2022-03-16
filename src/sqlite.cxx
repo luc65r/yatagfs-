@@ -26,40 +26,42 @@ auto SQLite::error() const noexcept -> Error {
     return Error(this->db);
 }
 
-auto SQLite::prepare(const char *query) -> Stmt {
+auto SQLite::prepare(std::string_view query) -> Stmt {
     sqlite3_stmt *stmt;
 
-    if (sqlite3_prepare_v2(db, query, -1, &stmt, NULL))
+    if (sqlite3_prepare_v2(db, query.data(), query.size(), &stmt, NULL))
         throw this->error();
 
     return Stmt(this, stmt);
 }
 
-static auto can_prerpare(const char *query) -> bool {
+static auto can_prerpare(std::optional<std::string_view> query) -> bool {
     return query && std::any_of(
-        query, query + std::strlen(query),
+        query->begin(), query->end(),
         [](unsigned char c) {
             return !std::isspace(c);
         }
     );
 }
 
-auto SQLite::prepare_all(const char *query) -> std::list<Stmt> {
-    const char *remaining = query;
+auto SQLite::prepare_all(std::string_view query) -> std::list<Stmt> {
+    std::optional<std::string_view> remaining = query;
     std::list<Stmt> list;
 
     while (can_prerpare(remaining)) {
         sqlite3_stmt *stmt;
-        std::cerr << "preparing: " << remaining << std::endl;
-        if (sqlite3_prepare_v2(db, remaining, -1, &stmt, &remaining))
+        std::cerr << "preparing: " << *remaining << std::endl;
+        const char *s = nullptr;
+        if (sqlite3_prepare_v2(db, remaining->data(), remaining->size(), &stmt, &s))
             throw this->error();
+        remaining = s;
         list.emplace_back(this, stmt);
     }
 
     return list;
 }
 
-auto SQLite::exec(const char *query) -> void {
+auto SQLite::exec(std::string_view query) -> void {
     auto stmts = this->prepare_all(query);
     for (auto &&stmt : stmts)
         stmt.exec();
@@ -88,8 +90,8 @@ auto SQLite::Stmt::bind(int id, int64_t val) -> void {
         throw this->error();
 }
 
-auto SQLite::Stmt::bind(int id, const char *text) -> void {
-    if (sqlite3_bind_text(stmt, id, text, -1, SQLITE_STATIC))
+auto SQLite::Stmt::bind(int id, std::string_view text) -> void {
+    if (sqlite3_bind_text(stmt, id, text.data(), text.size(), SQLITE_TRANSIENT))
         throw this->error();
 }
 
@@ -123,7 +125,7 @@ auto SQLite::Row::column_int64(int i) -> int64_t {
     return sqlite3_column_int64(stmt->stmt, i);
 }
 
-auto SQLite::Row::column_text(int i) -> const char * {
+auto SQLite::Row::column_text(int i) -> std::string_view {
     return reinterpret_cast<const char *>(sqlite3_column_text(stmt->stmt, i));
 }
 

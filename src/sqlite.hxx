@@ -27,10 +27,10 @@ public:
 
 class SQLite::Stmt {
 public:
-    const SQLite *db;
+    const SQLite &db;
     sqlite3_stmt *stmt;
 
-    Stmt(const SQLite *, sqlite3_stmt *);
+    Stmt(const SQLite &, sqlite3_stmt *);
     ~Stmt();
 
     auto error() const noexcept -> Error;
@@ -49,9 +49,9 @@ public:
 
 class SQLite::Row {
 public:
-    const Stmt *stmt;
+    const Stmt &stmt;
 
-    Row(const Stmt *);
+    Row(const Stmt &);
     ~Row();
 
     auto column_int(int) -> int;

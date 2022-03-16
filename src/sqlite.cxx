@@ -32,7 +32,7 @@ auto SQLite::prepare(std::string_view query) -> Stmt {
     if (sqlite3_prepare_v2(db, query.data(), query.size(), &stmt, NULL))
         throw this->error();
 
-    return Stmt(this, stmt);
+    return Stmt(*this, stmt);
 }
 
 static auto can_prerpare(std::optional<std::string_view> query) -> bool {
@@ -55,7 +55,7 @@ auto SQLite::prepare_all(std::string_view query) -> std::list<Stmt> {
         if (sqlite3_prepare_v2(db, remaining->data(), remaining->size(), &stmt, &s))
             throw this->error();
         remaining = s;
-        list.emplace_back(this, stmt);
+        list.emplace_back(*this, stmt);
     }
 
     return list;
@@ -67,7 +67,7 @@ auto SQLite::exec(std::string_view query) -> void {
         stmt.exec();
 }
 
-SQLite::Stmt::Stmt(const SQLite *db, sqlite3_stmt *stmt)
+SQLite::Stmt::Stmt(const SQLite &db, sqlite3_stmt *stmt)
     : db(db)
     , stmt(stmt)
 {}
@@ -77,7 +77,7 @@ SQLite::Stmt::~Stmt() {
 }
 
 auto SQLite::Stmt::error() const noexcept -> Error {
-    return db->error();
+    return db.error();
 }
 
 auto SQLite::Stmt::bind(int id, int val) -> void {
@@ -100,7 +100,7 @@ auto SQLite::Stmt::step() -> std::optional<Row> {
     case SQLITE_DONE:
         return {};
     case SQLITE_ROW:
-        return Row(this);
+        return Row(*this);
     default:
         throw this->error();
     }
@@ -111,22 +111,22 @@ auto SQLite::Stmt::exec() -> void {
         ;
 }
 
-SQLite::Row::Row(const Stmt *stmt)
+SQLite::Row::Row(const Stmt &stmt)
     : stmt(stmt)
 {}
 
 SQLite::Row::~Row() = default;
 
 auto SQLite::Row::column_int(int i) -> int {
-    return sqlite3_column_int(stmt->stmt, i);
+    return sqlite3_column_int(stmt.stmt, i);
 }
 
 auto SQLite::Row::column_int64(int i) -> int64_t {
-    return sqlite3_column_int64(stmt->stmt, i);
+    return sqlite3_column_int64(stmt.stmt, i);
 }
 
 auto SQLite::Row::column_text(int i) -> std::string_view {
-    return reinterpret_cast<const char *>(sqlite3_column_text(stmt->stmt, i));
+    return reinterpret_cast<const char *>(sqlite3_column_text(stmt.stmt, i));
 }
 
 SQLite::Error::Error(int code) noexcept
